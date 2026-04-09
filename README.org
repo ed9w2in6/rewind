@@ -1,0 +1,124 @@
+#+TITLE:rewind.el
+#+AUTHOR: welkinSL
+#+DATE: <2026-04-09 Thu>
+* About
+  Toggle window configuration save and restore
+
+  Default behaviour:
+  toggle to save and restore window configuation and point, with state
+  tracked per frame and tab in =tab-bar-mode=
+
+  Window configuration is the layout of your windows in a tab or frame.
+  See: [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Window-Configurations.html][Emacs docs - Window Configurations]]
+
+  Customise behaviour using =rewind-after-*= hooks and =rewind-before-*= functions.
+  Some hints:
+  + =after-*-hooks= can be used to add IO behaviours
+    - e.g. show an indicator at mode-line
+  + =before-*-functions= can be used to add conditions before save and restore
+    - e.g. only save when more than 1 window (splitted layout)
+
+  By adjusting these, you can create alternative behaviours.  For example:
+  + Add    =delete-other-windows=    to   =rewind-after-save-hook= and
+           =rewind-not-one-window-p= to   =rewind-before-save-functions=
+  + Remove =rewind--restore-point=   from =rewind-during-restore-hook=
+  This makes toggle behaves like tmux zoom pane: maximise current window, NOT
+  saving when already maximised (single window), and NOT restoring point.
+* Basic setup
+** Vanilla
+   Clone this repo to your desired path (e.g. "path/to/rewind")
+   Then do:
+   #+begin_src elisp :results output scalar :eval no
+(add-to-list 'load-path "path/to/rewind")
+(require 'rewind)
+;; BTW, consider switching from global-set-key to keymap-global-set
+;; advantages: less boiler plate AND better error checking
+(keymap-global-set "C-x z" 'rewind-toggle)
+;; (global-set-key (kbd "C-x z") 'rewind-toggle) ; same thing
+(with-eval-after-load 'rewind
+  ;; edit the hooks here for non-default behaviours
+  ;; See some exmaples at the "Setup ideas" section
+  )
+   #+end_src
+** Using =use-package=
+  #+begin_src elisp :results output scalar :eval no
+(use-package rewind
+  :vc (:url "https://github.com/ed9w2in6/rewind.git"
+       :rev :newest) ; better pin to specific commit or tag
+  ;; if you use straight:
+  ;; :straight (rewind
+  ;;   :type git
+  ;;   :host github
+  ;;   :repo "ed9w2in6/rewind")
+  :bind (("C-x z" . rewind-toggle))
+  :config
+  ;; edit the hooks here for non-default behaviours
+  ;; See some examples at the "Setup ideas" section
+  )
+  #+end_src
+* Setup ideas
+** Zoom
+   This will make =rewind-toggle= behave like tmux zoom pane
+#+begin_src elisp :results none :eval yes
+(add-hook 'rewind-after-save-hook #'delete-other-windows)
+(add-hook 'rewind-before-save-functions #'rewind-not-one-window-p)
+(remove-hook 'rewind-during-restore-hook #'rewind--restore-point)
+#+end_src
+** Change =mode-line= face background colour
+   This mimicks [[https://github.com/emacsorphanage/zoom-window][zoom-window]]'s behaviour.
+   Changes mode line color only when saved.
+#+begin_src elisp :results none :eval yes
+(defun change-mode-line-color-on-rewind-status (&rest args)
+  (if (rewind-is-saved-p)
+      (set-face-attribute 'mode-line nil :background "#004040") ; active color
+    (set-face-attribute 'mode-line nil :background "#785029"))) ; inactive color
+
+(dolist (hook '(window-configuration-change-hook  ; switch tab / maximise window
+                window-selection-change-functions ; switch frame
+                ;; need these if you configure to NOT maximise automatically
+                rewind-after-save-hook
+                rewind-after-restore-hook
+                ))
+  (add-hook hook #'change-mode-line-color-on-rewind-status))
+#+end_src
+** Add an status indicator to mode line (=doom-modeline=)
+   Using [[https://github.com/seagle0128/doom-modeline][doom-modeline]] as an example.
+
+   Displays an icon when saved.
+#+begin_src elisp :results none :eval yes
+(with-eval-after-load 'doom-modeline
+  (doom-modeline-def-segment rewind-status
+  "Display a nerd font icon only if `rewind-is-saved-p' returns non-nil."
+  (when (rewind-is-saved-p)
+    (let ((icon (nerd-icons-mdicon "nf-md-backup_restore" :face 'doom-modeline-urgent)))
+      ;; add padding around the icon
+      (propertize (concat " " icon " ") 'help-echo "rewind: restore available"))))
+  (doom-modeline-add-segment 'rewind-status 'window-number :before 'all))
+;; update any mode line indicator immediately, difference only noticable
+;; when NOT moving cursor after toggle (save)
+(dolist (hook '(rewind-after-save-hook
+                rewind-after-restore-hook
+                ))
+  (add-hook hook #'force-mode-line-update))
+#+end_src
+* Debug
+  Remember that order does matter in hooks.
+  Any failure will trigger short ciruit to skip the rest.
+
+  Here are some useful functions for debugging:
+   #+begin_src elisp :results output scalar :eval no
+;; check the order of hooks
+(describe-variable 'rewind-before-save-functions) ; first nil will skip the rest
+(describe-variable 'rewind-after-save-hook) ; error for one will skip the rest
+
+;; check hash table size and weakness
+(hash-table-count rewind--saved-configs)
+(hash-table-weakness rewind--saved-configs)
+(hash-table-weakness (gethash (selected-frame) rewind--saved-configs))
+
+;; check hash table contains the relavent entries
+(selected-frame)
+(tab-bar--current-tab-index)
+(hash-table-keys rewind--saved-point-markers)
+(hash-table-values rewind--saved-point-markers)
+   #+end_src
