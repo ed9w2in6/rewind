@@ -2,7 +2,8 @@
 #+AUTHOR: welkinSL
 #+DATE: <2026-04-09 Thu>
 * About
-  By default, =rewind-toggle= saves and restores [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Window-Configurations.html][window configuation]] (layout)
+  By default, =rewind-toggle= saves and restores [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Window-Configurations.html][window configuation]] (layout).
+
   This is unique per [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Frames.html][frame]], and per [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Tab-Bars.html][tab]], as in =tab-bar-mode=.
 
   Customise behaviour using =rewind-after-*= hooks and =rewind-before-*= functions.
