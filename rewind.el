@@ -87,7 +87,7 @@ See `rewind--saved-configs' and `rewind--saved-point-markers'."
   :type 'hook
   :group 'rewind)
  
-(defcustom rewind-during-restore-hook '(rewind--restore-point)
+(defcustom rewind-during-restore-hook nil
   "Hook run immediately after restoring window configuration, before clean-up.
 
 Ran before clean-up: resetting the managed saved states to nil.
@@ -109,7 +109,12 @@ See `rewind--saved-configs' and `rewind--saved-point-markers'."
   :type 'hook
   :group 'rewind)
 
-;;; Internal states
+(defvar rewind--rewind-toggle-prefix-arg nil
+  "The `current-prefix-arg' for the latest call to `rewind-toggle'.
+
+Do NOT modify this or risk undefined behaviour."
+  )
+
 (defvar rewind--saved-configs (make-hash-table :test 'equal :weakness 'key)
   "Currently saved window configurations.
 No guarantee to what object type this is.
@@ -152,13 +157,15 @@ Managed by `rewind-toggle'.")
     (puthash (tab-bar--current-tab-index) marker inner-hash-table)))
 
 (defun rewind--restore-point ()
-  "Restore point using `rewind--saved-point-markers'.
+  "Restore curosr position if not resetting.
 
-Restore cursor position of the saved state.
+Restore point using `rewind--saved-point-markers' when
+`rewind--rewind-toggle-prefix-arg' is nil.
 
 Do NOT call this manually as there might be no point marker saved.
 It is valid when calling via `rewind-during-restore-hook'."
-  (goto-char (rewind--get-saved-point-marker)))
+  (unless rewind--rewind-toggle-prefix-arg
+    (goto-char (rewind--get-saved-point-marker))))
 
 (defun rewind-not-one-window-p (_has-prefix)
   "Negation of `one-window-p'.
@@ -176,8 +183,8 @@ contains valid objects."
        (markerp (rewind--get-saved-point-marker))))
 
 ;;;###autoload
-(defun rewind-toggle ()
-  "Toggle window configuration save and restore.
+(defun rewind-toggle (&optional arg)
+  "Toggle window configuration save and restore, reset if ARG non-nil.
 
 Window configuration is the layout of your windows in a tab or frame.
 
@@ -188,19 +195,22 @@ Before saving or restoring, will run hook `rewind-before-save-functions' and
 If any of the predicates in the hooks returns non-nil, will abort any action.
 
 See `run-hook-with-args-until-failure'."
-  (interactive)
+  (interactive "P")
+  (setq rewind--rewind-toggle-prefix-arg arg)
   (if (rewind-is-saved-p)
       ;; restore branch
-      (when (run-hook-with-args-until-failure 'rewind-before-restore-functions current-prefix-arg)
-        (set-window-configuration (rewind--get-saved-config))
+      (when (run-hook-with-args-until-failure 'rewind-before-restore-functions rewind--rewind-toggle-prefix-arg)
+        (unless rewind--rewind-toggle-prefix-arg
+          (set-window-configuration (rewind--get-saved-config)))
         (run-hooks 'rewind-during-restore-hook)
         (rewind--set-saved-config nil)
         (rewind--set-saved-point-marker nil)
         (run-hooks 'rewind-after-restore-hook))
     ;; save branch
-    (when (run-hook-with-args-until-failure 'rewind-before-save-functions current-prefix-arg)
-      (rewind--set-saved-config (current-window-configuration))
-      (rewind--set-saved-point-marker (point-marker))
+    (when (run-hook-with-args-until-failure 'rewind-before-save-functions rewind--rewind-toggle-prefix-arg)
+      (unless rewind--rewind-toggle-prefix-arg
+        (rewind--set-saved-config (current-window-configuration))
+        (rewind--set-saved-point-marker (point-marker)))
       (run-hooks 'rewind-after-save-hook))))
 
 (provide 'rewind)
