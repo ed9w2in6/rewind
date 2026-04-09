@@ -18,13 +18,13 @@
 
 ;;; Commentary:
 
-;; By default, `rewind-toggle' saves and restores window configuation (layout)
-;; and point (cursor position), per frame, and per tab, as in `tab-bar-mode'.
+;; By default, `rewind-toggle' saves and restores window configuation (layout).
+;; This is unique per frame, and per tab, as in `tab-bar-mode'.
 
 ;; Customise behaviour using "rewind-after-*" hooks and "rewind-before-*" functions.
 ;; Some hints:
-;; + "after-*-hooks" can be used to add IO behaviours
-;;   – e.g. show an indicator at `mode-line'
+;; + "after-*-hooks" and "during-*-hook" can be used to add IO behaviours
+;;   – e.g. show an indicator atmode line
 ;;   - e.g. maximises current window
 ;; + "before-*-functions" can be used to add conditions before save and restore
 ;;   – e.g. only save when more than 1 window (i.e. splitted windows)
@@ -33,9 +33,9 @@
 
 ;; (add-hook 'rewind-after-save-hook #'delete-other-windows)
 ;; (add-hook 'rewind-before-save-functions #'rewind-not-one-window-p)
-;; (remove-hook 'rewind-during-restore-hook #'rewind--restore-point)
 
-;; See repo's README for some fun ideas for your setup.
+;; Some useful functions are provided for your convinience.
+;; See "Setup ideas" section on repo's README for some fun usage example.
 
 ;; TODO:
 ;; - tests
@@ -48,34 +48,28 @@
 This is tracked per frame, and per tab, as in `tab-bar-mode'."
   :group 'convenience)
 
-;;; Branch predicates
-
 (defcustom rewind-before-save-functions nil
   "Abnormal hook run before saving the configuration.
-
-Each function should take a single parameter for `current-prefix-arg'.
 
 Each function should return non-nil otherwise the save branch is aborted.
 Note that when aborting, `rewind-after-save-hook' will be skipped.
 
-See `rewind-toggle'."
+You can use `rewind--rewind-toggle-prefix-arg' for the `current-prefix-arg'
+passed to `rewind-toggle'."
   :type 'hook
   :group 'rewind)
 
 (defcustom rewind-before-restore-functions nil
   "Abnormal hook run before restoring the configuration.
 
-Each function should take a single parameter for `current-prefix-arg'.
-
 Each function should return non-nil otherwise the restore branch is aborted.
 Note that when aborting, both `rewind-during-restore-hook'
 and `rewind-after-restore-hook' will be skipped.
 
-See `rewind-toggle'."
+You can use `rewind--rewind-toggle-prefix-arg' for the `current-prefix-arg'
+passed to `rewind-toggle'."
   :type 'hook
   :group 'rewind)
-
-;;; After action hooks
 
 (defvaralias 'rewind-during-save-hook 'rewind-after-save-hook
   "Same as `rewind-after-save-hook'."
@@ -83,7 +77,10 @@ See `rewind-toggle'."
 (defcustom rewind-after-save-hook nil
   "Hook run after saving `current-window-configuration' and point.
 
-See `rewind--saved-configs' and `rewind--saved-point-markers'."
+You can use `rewind--rewind-toggle-prefix-arg' for the `current-prefix-arg'
+passed to `rewind-toggle'.
+
+See `rewind-toggle', `rewind--saved-configs', and `rewind--saved-point-markers'."
   :type 'hook
   :group 'rewind)
  
@@ -93,9 +90,10 @@ See `rewind--saved-configs' and `rewind--saved-point-markers'."
 Ran before clean-up: resetting the managed saved states to nil.
 See `rewind-after-restore-hook' for after clean-up.
 
-See `rewind--saved-configs' and `rewind--saved-point-markers'.
+You can use `rewind--rewind-toggle-prefix-arg' for the `current-prefix-arg'
+passed to `rewind-toggle'.
 
-The function `rewind--restore-point' is added to this hook by default."
+See `rewind-toggle', `rewind--saved-configs', and `rewind--saved-point-markers'."
   :type 'hook
   :group 'rewind)
 
@@ -105,7 +103,10 @@ The function `rewind--restore-point' is added to this hook by default."
 Ran after clean-up: resetting the managed saved states to nil.
 See `rewind-during-restore-hook' for after clean-up.
 
-See `rewind--saved-configs' and `rewind--saved-point-markers'."
+You can use `rewind--rewind-toggle-prefix-arg' for the `current-prefix-arg'
+passed to `rewind-toggle'.
+
+See `rewind-toggle', `rewind--saved-configs', and `rewind--saved-point-markers'."
   :type 'hook
   :group 'rewind)
 
@@ -119,15 +120,16 @@ Do NOT modify this or risk undefined behaviour."
   "Currently saved window configurations.
 No guarantee to what object type this is.
 Do NOT modify this or rely on this or risk undefined behaviour.
-Managed by `rewind-toggle'.")
+Managed by `rewind-toggle'."
+  )
 
 (defvar rewind--saved-point-markers (make-hash-table :test 'equal :weakness 'key)
   "Currently saved points as marker objects.
 No guarantee to what object type this is.
 Do NOT modify this or rely on this or risk undefined behaviour.
-Managed by `rewind-toggle'.")
+Managed by `rewind-toggle'."
+  )
 
-;;; Functions
 (defun rewind--get-saved-config ()
   "Get the corresponding saved window configuration."
   (let ((inner-hash-table (gethash (selected-frame) rewind--saved-configs)))
