@@ -69,12 +69,20 @@
 #+begin_src elisp :results none :eval yes
 (with-eval-after-load 'doom-modeline
   (doom-modeline-def-segment rewind-status
-  "Display a nerd font icon only if `rewind-is-saved-p' returns non-nil."
-  (when (rewind-is-saved-p)
-    (let ((icon (nerd-icons-mdicon "nf-md-backup_restore" :face 'doom-modeline-urgent)))
-      ;; add padding around the icon
-      (propertize (concat " " icon " ") 'help-echo "rewind: restore available"))))
-  (doom-modeline-add-segment 'rewind-status 'window-number :before 'all))
+    "Display a nerd font icon only if `rewind-is-saved-p' returns non-nil."
+    (when (rewind-is-saved-p)
+      (let ((icon
+             (nerd-icons-mdicon
+              "nf-md-backup_restore"
+              :face 'doom-modeline-urgent)))
+        ;; add padding around the icon
+        (propertize (concat " " icon " ")
+                    'help-echo
+                    "rewind: restore available"))))
+  (doom-modeline-add-segment
+   'rewind-status
+   'window-number
+   :before 'all))
 ;; update any mode line indicator immediately, difference only noticable
 ;; when NOT moving cursor after toggle (save)
 (dolist (hook '(rewind-after-save-hook
