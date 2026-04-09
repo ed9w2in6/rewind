@@ -1,4 +1,4 @@
-;;; rewind.el --- toggle window configuration save and restore -*- lexical-binding: t; -*-
+;;; rewind.el --- Toggle window configuration save and restore -*- lexical-binding: t; -*-
 
 ;; Copyright © 2026, by ed9w2in6
 
@@ -18,26 +18,24 @@
 
 ;;; Commentary:
 
-;; Default behaviour:
-;; toggle to save and restore window configuation and point, with state
-;; tracked per frame and tab in `tab-bar-mode'
+;; By default, `rewind-toggle' saves and restores window configuation (layout)
+;; and point (cursor position), per frame, and per tab, as in `tab-bar-mode'.
 
-;; Window configuration is the layout of your windows in a tab or frame.
-;; See: https://www.gnu.org/software/emacs/manual/html_node/elisp/Window-Configurations.html
-
-;; Customise behaviour using "rewind-after-*" hooks and
-;; "rewind-before-*" functions.  Some hints:
+;; Customise behaviour using "rewind-after-*" hooks and "rewind-before-*" functions.
+;; Some hints:
 ;; + "after-*-hooks" can be used to add IO behaviours
-;;   - e.g. show an indicator at mode-line
+;;   – e.g. show an indicator at `mode-line'
+;;   - e.g. maximises current window
 ;; + "before-*-functions" can be used to add conditions before save and restore
-;;   - e.g. only save when more than 1 window (splitted layout)
+;;   – e.g. only save when more than 1 window (i.e. splitted windows)
 
-;; By adjusting these, you can create alternative behaviours.  For example:
-;; + Add    `delete-other-windows'    to   `rewind-after-save-hook' and
-;;          `rewind-not-one-window-p' to   `rewind-before-save-functions'
-;; + Remove `rewind--restore-point'   from `rewind-during-restore-hook'
-;; This makes toggle behaves like tmux zoom pane: maximise current window, NOT
-;; saving when already maximised (single window), and NOT restoring point.
+;; For example, this makes `rewind-toggle' maximises and minimises window like tmux
+
+;; (add-hook 'rewind-after-save-hook #'delete-other-windows)
+;; (add-hook 'rewind-before-save-functions #'rewind-not-one-window-p)
+;; (remove-hook 'rewind-during-restore-hook #'rewind--restore-point)
+
+;; See repo's README for some fun ideas for your setup.
 
 ;; TODO:
 ;; - tests
@@ -47,7 +45,7 @@
 (defgroup rewind nil
   "Toggle window configuration save and restore.
 
-Window configuration is the layout of your windows in a tab or frame."
+This is tracked per frame, and per tab, as in `tab-bar-mode'."
   :group 'convenience)
 
 ;;; Branch predicates
@@ -162,10 +160,10 @@ Do NOT call this manually as there might be no point marker saved.
 It is valid when calling via `rewind-during-restore-hook'."
   (goto-char (rewind--get-saved-point-marker)))
 
-(defun rewind-not-one-window-p (_has-prefix-p)
+(defun rewind-not-one-window-p (_has-prefix)
   "Negation of `one-window-p'.
 
-Can be used to make toggle behave like tmux zoom pane."
+Can be used to make `rewind-toggle' maximises and minimises window like tmux."
   (not (one-window-p)))
 
 (defun rewind-is-saved-p ()

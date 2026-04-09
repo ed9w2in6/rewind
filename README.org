@@ -2,28 +2,25 @@
 #+AUTHOR: welkinSL
 #+DATE: <2026-04-09 Thu>
 * About
-  Toggle window configuration save and restore
-
-  Default behaviour:
-  toggle to save and restore window configuation and point, with state
-  tracked per frame and tab in =tab-bar-mode=
-
-  Window configuration is the layout of your windows in a tab or frame.
-  See: [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Window-Configurations.html][Emacs docs - Window Configurations]]
+  By default, =rewind-toggle= saves and restores [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Window-Configurations.html][window configuation]] (layout)
+  and [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Point.html][point]] (cursor position), per [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Frames.html][frame]], and per [[https://www.gnu.org/software/emacs/manual/html_node/emacs/Tab-Bars.html][tab]], as in =tab-bar-mode=.
 
   Customise behaviour using =rewind-after-*= hooks and =rewind-before-*= functions.
   Some hints:
   + =after-*-hooks= can be used to add IO behaviours
-    - e.g. show an indicator at mode-line
+    - e.g. shows an indicator at mode-line
+    - e.g. maximises current window
   + =before-*-functions= can be used to add conditions before save and restore
-    - e.g. only save when more than 1 window (splitted layout)
+    - e.g. only save when more than 1 window (i.e. splitted windows)
 
-  By adjusting these, you can create alternative behaviours.  For example:
-  + Add    =delete-other-windows=    to   =rewind-after-save-hook= and
-           =rewind-not-one-window-p= to   =rewind-before-save-functions=
-  + Remove =rewind--restore-point=   from =rewind-during-restore-hook=
-  This makes toggle behaves like tmux zoom pane: maximise current window, NOT
-  saving when already maximised (single window), and NOT restoring point.
+  For example, this makes =rewind-toggle= maximises a window like tmux:
+#+begin_src elisp :results output scalar :eval no
+(add-hook 'rewind-after-save-hook #'delete-other-windows)
+(add-hook 'rewind-before-save-functions #'rewind-not-one-window-p)
+(remove-hook 'rewind-during-restore-hook #'rewind--restore-point)
+#+end_src
+
+  See the [[*Setup ideas][Setup ideas]] section for some fun setup.
 * Basic setup
 ** Vanilla
    Clone this repo to your desired path (e.g. "path/to/rewind")
@@ -57,8 +54,11 @@
   )
   #+end_src
 * Setup ideas
-** Zoom
-   This will make =rewind-toggle= behave like tmux zoom pane
+** Maximise window after save
+   This makes =rewind-toggle= maximises a window like tmux:
+   + maximise current window
+   + NOT saving when already maximised (single window)
+   + NOT restoring point
 #+begin_src elisp :results none :eval yes
 (add-hook 'rewind-after-save-hook #'delete-other-windows)
 (add-hook 'rewind-before-save-functions #'rewind-not-one-window-p)
@@ -105,13 +105,13 @@
   Remember that order does matter in hooks.
   Any failure will trigger short ciruit to skip the rest.
 
-  Here are some useful functions for debugging:
+  As of [2026-04-09 Thu], these functions can be useful for debugging:
    #+begin_src elisp :results output scalar :eval no
 ;; check the order of hooks
 (describe-variable 'rewind-before-save-functions) ; first nil will skip the rest
 (describe-variable 'rewind-after-save-hook) ; error for one will skip the rest
 
-;; check hash table size and weakness
+;; memory issues / stutter caused by GC -> check hash table size and weakness
 (hash-table-count rewind--saved-configs)
 (hash-table-weakness rewind--saved-configs)
 (hash-table-weakness (gethash (selected-frame) rewind--saved-configs))
